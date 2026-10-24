@@ -1,7 +1,7 @@
 {
   "defaults": {
     "vm": {
-      "distro": "ubuntu:noble",
+      "distro": "ubuntu:resolute",
       "isolate_network": true,
       "packages": ["git", "openssh-client", "curl", "ca-certificates", "build-essential"]
     },

@@ -3,7 +3,7 @@
 # "vm": {
 #   "name":            "acme-web",      // default: project name with dots → dashes
 #   "user":            "you",           // default: your Mac user name
-#   "distro":          "ubuntu:noble",  // default: ubuntu
+#   "distro":          "ubuntu:resolute",  // default: ubuntu; only used when the machine is created
 #   "arch":            "arm64",         // optional
 #   "cpus": 4, "memory": "8G", "disk": "64G",   // optional
 #   "isolate_network": true,            // default true: no route to your Mac's network

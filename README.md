@@ -202,7 +202,7 @@ Each top-level key is a group, handled by one module in `lib/groups/`.
 | --- | --- | --- |
 | `name` | project name, dots → dashes | OrbStack machine name |
 | `user` | your Mac user name | user inside the machine |
-| `distro` | `ubuntu` | e.g. `ubuntu:noble`, `debian`, `fedora` |
+| `distro` | `ubuntu` (OrbStack's default version) | e.g. `ubuntu:resolute` (26.04 LTS), `debian`, `fedora`. Only used when the machine is created |
 | `arch`, `cpus`, `memory`, `disk` | OrbStack defaults | e.g. `4`, `"8G"`, `"64G"` |
 | `isolate_network` | `true` | block the machine from reaching your Mac's network |
 | `packages` | `[]` | installed on the first run |

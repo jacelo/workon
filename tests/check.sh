@@ -11,7 +11,7 @@ pass() { printf '\033[32m✓\033[0m %s\n' "$*"; }
 fail() { printf '\033[31m✗\033[0m %s\n' "$*"; fails=$((fails + 1)); }
 
 # Every script parses with macOS's bash 3.2, which is what runs workon.
-for f in "$WORKON" "$ROOT/install.sh" "$ROOT"/tests/*.sh "$ROOT"/lib/*.sh "$ROOT"/lib/groups/*.sh; do
+for f in "$WORKON" "$ROOT/install.sh" "$ROOT/uninstall.sh" "$ROOT"/tests/*.sh "$ROOT"/lib/*.sh "$ROOT"/lib/groups/*.sh; do
   if /bin/bash -n "$f" 2>/dev/null; then pass "syntax: ${f#$ROOT/}"; else fail "syntax: ${f#$ROOT/}"; fi
 done
 

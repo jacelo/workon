@@ -16,6 +16,7 @@ your Mac's files, SSH keys or network.
 - [Security model](#security-model)
 - [Requirements](#requirements)
 - [Install](#install)
+- [Uninstall](#uninstall)
 - [Quick start](#quick-start)
 - [Commands](#commands)
 - [Configuration](#configuration)
@@ -59,14 +60,69 @@ git clone <this repo> ~/workon
 ~/workon/install.sh
 ```
 
-`install.sh` is safe to re-run. It:
+Then open a new terminal so the `workon` command is available.
 
-1. checks for the tools above,
-2. adds `bin/` to your `PATH` and the tab completion to `~/.zshrc`,
-3. turns off SSH agent and X11 forwarding to OrbStack machines in `~/.ssh/config`,
-4. creates `config/workon.json` from `config/workon.example.json`.
+### What install.sh does
 
-Open a new terminal afterwards.
+`install.sh` only touches the files listed below, and only inside lines it marks as its own, so
+your other settings are left alone. Each step checks first and does nothing if it's already done,
+so it's safe to run again. Run it again after moving this folder: it updates the paths.
+
+1. **Checks your tools.** Looks for `jq`, OrbStack's `orb`, `ssh`, `osascript` and Cursor, and
+   tells you how to install any that are missing. It doesn't install anything itself.
+
+2. **Adds `workon` to your shell** (`~/.zshrc`). Adds this block, between markers it uses to find
+   it again:
+
+   ```bash
+   # >>> workon >>>
+   export PATH="<this folder>/bin:$PATH"           # makes the workon command available
+   autoload -Uz compinit && compinit -C            # turns on zsh tab completion
+   source "<this folder>/lib/completion.zsh"       # tab-completes workon commands and projects
+   # <<< workon <<<
+   ```
+
+   If the block is already there but out of date, it's replaced, and the old file is kept as
+   `~/.zshrc.bak-workon`.
+
+3. **Hardens SSH to OrbStack machines** (`~/.ssh/config`). Adds a block that stops SSH from ever
+   forwarding your Mac's SSH agent (and with it, the use of your keys) or X11 into a machine:
+
+   ```
+   # >>> workon hardening >>>
+   Host orb
+     ForwardAgent no
+     ForwardX11 no
+   # <<< workon hardening <<<
+   ```
+
+4. **Creates your config.** Copies `config/workon.example.json` to `config/workon.json` if you
+   don't have one yet, and creates `config/claude-keys/` readable only by you.
+
+Two more things are written later, by `workon` itself, the first time it opens a project in
+Cursor (see [Troubleshooting](#troubleshooting) for why):
+
+- an SSH alias per machine in `~/.ssh/workon/<machine>.conf`, and
+- an `Include ~/.ssh/workon/*.conf` line at the top of `~/.ssh/config`.
+
+## Uninstall
+
+```bash
+./uninstall.sh            # remove workon from your shell and SSH config
+./uninstall.sh --purge    # also delete your config and Claude tokens (asks you to type "yes")
+```
+
+`uninstall.sh` undoes everything above and is safe to run again:
+
+- removes the `workon` block from `~/.zshrc`,
+- removes the hardening block and the `Include` line from `~/.ssh/config`, and deletes
+  `~/.ssh/workon/`,
+- backs up each file it changes as `<file>.bak-workon` first.
+
+It never deletes machines, because they hold your work. It lists the ones that exist with the command
+to delete each (`orb delete <machine>`). Without `--purge`, your config and Claude tokens stay, so
+running `install.sh` again brings everything back. Delete this folder yourself when you're done
+with it.
 
 ## Quick start
 
@@ -387,5 +443,6 @@ config/
   workon.json              your config (gitignored)
   claude-keys/             per-project Claude Code tokens (gitignored)
 install.sh                 one-time setup on a Mac; re-run after moving the folder
+uninstall.sh               undo install.sh (keeps machines; --purge deletes config and tokens)
 tests/check.sh             fast checks; no machine needed
 ```

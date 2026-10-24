@@ -23,7 +23,21 @@ with_heartbeat() {
   kill "$hb" 2>/dev/null; wait "$hb" 2>/dev/null || true
   return "$rc"
 }
-trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
+# On exit: stop heartbeats and delete temporary paths registered with temp_dir.
+CLEANUP_PATHS=()
+trap 'kill $(jobs -p) 2>/dev/null || true; rm -rf "${CLEANUP_PATHS[@]+"${CLEANUP_PATHS[@]}"}"' EXIT
+
+# temp_dir_into <var>: create a private temporary folder, deleted when workon exits, and store
+# its path in <var>. (Not `$(…)`: the cleanup list must be updated in this shell.)
+temp_dir_into() {
+  local d; d="$(mktemp -d "${TMPDIR:-/tmp}/workon.XXXXXX")" || die "Couldn't create a temporary folder"
+  CLEANUP_PATHS+=("$d")
+  eval "$1=\$d"
+}
+
+# sanitize: strip terminal control sequences from untrusted text before showing it.
+# Keeps tabs and newlines. Removes ASCII controls (incl. ESC) and UTF-8 encoded C1 controls.
+sanitize() { LC_ALL=C sed -e $'s/[\x01-\x08\x0b-\x1f\x7f]//g' -e $'s/\xc2[\x80-\x9f]//g'; }
 
 # host_path <path>: expand ~ on the Mac. Host paths must be absolute or start with ~.
 host_path() {

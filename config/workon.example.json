@@ -17,6 +17,10 @@
       "marketplaces": ["anthropics/claude-plugins-official"],
       "plugins": ["figma@claude-plugins-official"],
       "mcp": {}
+    },
+    "pull": {
+      "extensions": ["md", "txt"],
+      "max_file_size": "10M"
     }
   },
   "projects": {
@@ -42,7 +46,8 @@
         "copy": [
           { "src": "~/Work/acme/web/.env.local", "dest": ".env.local" },
           { "src": "~/Work/acme/web.code-workspace", "dest": "~/acme/web.code-workspace" },
-          { "src": "~/Work/acme/notes", "dest": "~/acme/notes", "sync": "always", "exclude": ["*.tmp"] }
+          { "src": "~/Work/acme/assets", "dest": "~/acme/assets", "sync": "always", "exclude": ["*.tmp"] },
+          { "src": "~/Work/acme/notes", "dest": "~/acme/notes", "pull": true }
         ],
         "claude": {
           "mcp": {

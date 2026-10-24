@@ -21,6 +21,7 @@ your Mac's files, SSH keys or network.
 - [Commands](#commands)
 - [Configuration](#configuration)
 - [Lifecycle](#lifecycle)
+- [Pulling changes back](#pulling-changes-back)
 - [Claude Code in the machine](#claude-code-in-the-machine)
 - [Troubleshooting](#troubleshooting)
 - [Extending workon](#extending-workon)
@@ -35,8 +36,9 @@ Data only flows from the Mac into the machine:
   folders mounted, or has SSH agent forwarding on.
 - **Network isolation** (on by default). The machine can reach the internet but not your Mac's IP
   addresses or other machines.
-- **One-way copies.** Files go in by piping `tar`/`cat` over stdin. workon never reads files back
-  out, and never mounts Mac folders.
+- **One-way copies.** Files go in by piping `tar`/`cat` over stdin, and Mac folders are never
+  mounted. The one exception is `workon --pull`, which you opt into per copy entry and which only
+  brings back allowed document types after you've reviewed them. See [Pulling changes back](#pulling-changes-back).
 - **Scoped secrets.** A project's git SSH key is copied in and used only by that project's repo.
   Agent and X11 forwarding to OrbStack machines are turned off in `~/.ssh/config`.
 
@@ -144,6 +146,7 @@ with it.
 | `workon -d`, `--down <p>` | Close the project's Cursor window, run `on_stop` hooks, stop the machine. Nothing is deleted |
 | `workon --stop <p>` | Stop the machine only |
 | `workon --sync <p>` | Re-apply settings and re-copy every `copy` entry, overwriting what's in the machine |
+| `workon --pull <p>` | Bring changes back from the machine for `copy` entries with `"pull": true`. Shows every change and asks first |
 | `workon --provision <p>` | Re-run first-time installs and the `on_create_root` / `on_create` hooks |
 | `workon --show <p>` | Print the project's settings after inheritance |
 | `workon --init` | Create `config/workon.json` from the example |
@@ -230,16 +233,30 @@ for just that repo limits the damage if a machine is compromised.
 "copy": [
   "~/notes/todo.md",
   { "src": "~/Work/acme/web/.env.local", "dest": ".env.local" },
-  { "src": "~/Work/acme/assets", "dest": "~/assets", "sync": "always", "exclude": ["*.tmp"] }
+  { "src": "~/Work/acme/assets", "dest": "~/assets", "sync": "always", "exclude": ["*.tmp"] },
+  { "src": "~/Work/acme/notes", "dest": "~/notes", "pull": true }
 ]
 ```
 
 A plain string copies into the project folder. `sync: "once"` (default) copies only when the
 destination is missing, so your edits in the machine survive. `"always"` overwrites on every run.
-`workon --sync` overwrites every entry.
+`workon --sync` overwrites every entry, except that `"pull"` entries are skipped while the machine
+has changes your Mac doesn't.
+
+`"pull": true` lets `workon --pull` bring changes back. See [Pulling changes back](#pulling-changes-back).
+It can't be combined with `"sync": "always"`, which would overwrite the machine's changes on every run.
 
 Files copied from the Mac often contain Mac paths (`/Users/...`). Fix them in the machine's copy,
 and remember that `--sync` will bring the Mac version back.
+
+#### `pull`: what may come back from the machine
+
+| Key | Default | |
+| --- | --- | --- |
+| `extensions` | `["md", "txt"]` | file types `workon --pull` may bring back |
+| `max_file_size` | no limit | largest file to bring back: bytes, or e.g. `"500K"`, `"10M"`, `"1G"` |
+
+Set it in `defaults` to apply to every project. A project can override it.
 
 #### `claude`: Claude Code in the machine
 
@@ -279,10 +296,78 @@ workon <project>
   open       Cursor
 
 workon --sync      load → attach → setup (overwriting copies)
+workon --pull      load → attach → review the machine's changes → apply what you confirm
 workon --down      load → down (in reverse group order: close Cursor, then on_stop) → stop machine
 ```
 
 "First run" means the machine has no setup marker yet. `--provision` runs those steps again.
+
+## Pulling changes back
+
+Copy entries are one-way by default. For documents you also edit in the machine, such as notes or
+docs, add `"pull": true` to the entry and run:
+
+```bash
+workon --pull acme.web
+```
+
+workon compares the machine's copy with your Mac's, shows you every new file and every change as a
+diff, and asks before writing anything:
+
+```
+~/Work/acme/notes
+  + new      meeting-2026-10-24.md
+      │ # Meeting notes
+  ~ changed  plan.md
+      │ -Ship on Friday
+      │ +Ship on Monday
+  - skipped    .vscode/tasks.md — unsafe or hidden name
+  - skipped    run.sh — file type not allowed
+  ! conflict   todo.md — changed on both sides, skipped
+  · mac newer  ideas.md — push it with workon --sync
+
+Apply these 2 file(s) to your Mac? [y/N]
+```
+
+### Why it's restricted
+
+The machine is the untrusted side, so a file's name says nothing about what it is. A compromised
+machine could plant a symlink or an app, or put instructions in a document for an AI agent on your
+Mac to follow. So `--pull`:
+
+- only runs when you ask, never as part of another command,
+- stages everything in a temporary folder first, and changes nothing until you confirm,
+- only accepts regular files, under `pull.max_file_size` if you set one,
+- from folder entries, only accepts allowed extensions (`pull.extensions`, `md` and `txt` by
+  default), and skips anything hidden (`.vscode`, `.git`, `.env`, …) and unsafe names. A single-file
+  entry (like `.env.local`) names its file in your config, so the machine can't choose what
+  arrives, and it may be any type,
+- skips symlinks and special files,
+- removes executable permissions and marks pulled files as downloaded, so macOS checks them if
+  they're ever opened as apps,
+- strips terminal control codes from everything it shows you,
+- never deletes anything on your Mac.
+
+Still read what you pull before handing it to an AI agent on your Mac.
+
+### Who changed what
+
+workon remembers the version of each file when both sides last matched (after a copy or a pull),
+in `~/.local/state/workon/pull/<project>.tsv`. That's how it tells the cases apart:
+
+| Status | Meaning | What happens |
+| --- | --- | --- |
+| new / changed | changed in the machine only | shown, applied if you confirm |
+| mac newer | changed on your Mac only | left alone; `workon --sync` pushes it |
+| conflict | changed on both sides | skipped. Make both copies the same, then run again |
+| deleted | deleted on your Mac, unchanged in the machine | left deleted |
+| mac only | exists only on your Mac | kept |
+
+Before the first pull or copy there's no history, so every difference shows as a change from the
+machine. Check those diffs carefully.
+
+`workon --sync` won't overwrite a pull entry while the machine has changes your Mac doesn't. It
+names the files, so you can pull them first.
 
 ## Claude Code in the machine
 
@@ -429,7 +514,9 @@ Add a `cmd_<name>` function and a line in `workon_main` in `lib/commands.sh`, th
 
 - Stay compatible with macOS's `/bin/bash` 3.2: no associative arrays, `mapfile` or `${x,,}`. Empty
   arrays need `"${arr[@]+"${arr[@]}"}"` under `set -u`.
-- Never read files out of the machine onto the Mac.
+- Never read files out of the machine onto the Mac, except through `55-pull.sh` and its checks.
+  Treat anything the machine reports (names, sizes, hashes, contents) as untrusted, and pass text
+  you show through `sanitize`.
 - Run `tests/check.sh` before committing. It checks syntax with bash 3.2, runs shellcheck if
   installed, and tests config resolution against the example config.
 
@@ -445,7 +532,7 @@ lib/
   commands.sh              CLI commands
   completion.zsh           zsh tab completion, loaded from ~/.zshrc
   groups/                  one module per config group, run in file-name order
-    10-vm.sh  20-workspace.sh  30-git.sh  40-claude.sh  50-copy.sh  60-hooks.sh  70-cursor.sh
+    10-vm.sh  20-workspace.sh  30-git.sh  40-claude.sh  50-copy.sh  55-pull.sh  60-hooks.sh  70-cursor.sh
 config/
   workon.example.json      template with every option (committed)
   workon.json              your config (gitignored)

@@ -13,6 +13,8 @@ Usage:
                               (nothing is deleted; "workon <p>" brings it back)
   workon --stop <p>           Stop the machine only
   workon --sync <p>           Re-apply settings and re-copy every "copy" entry (overwrites)
+  workon --pull <p>           Bring changes back from the machine for "copy" entries with "pull": true
+                              (shows every change and asks before touching your Mac)
   workon --provision <p>      Re-run first-time installs and the on_create_root / on_create hooks
   workon --show <p>           Print the project's merged settings
   workon --init               Create config/workon.json from the example
@@ -55,6 +57,11 @@ cmd_sync() {
   load_project "$1"; ensure_machine
   WORKON_SYNC=1 run_phase setup
   ok "Synced"
+}
+
+cmd_pull() {
+  load_project "$1"; ensure_machine
+  pull_run
 }
 
 cmd_provision() {
@@ -111,6 +118,7 @@ workon_main() {
     -d|--down)   need_arg "$@"; cmd_down "$2" ;;
     --stop)      need_arg "$@"; cmd_stop "$2" ;;
     --sync)      need_arg "$@"; cmd_sync "$2" ;;
+    --pull)      need_arg "$@"; cmd_pull "$2" ;;
     --provision) need_arg "$@"; cmd_provision "$2" ;;
     --show)      need_arg "$@"; cmd_show "$2" ;;
     -*)          die "Unknown option: $1 (see workon --help)" ;;

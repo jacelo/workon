@@ -4,10 +4,13 @@
 #   "install":    true,                     // default true; installs to ~/.local/bin
 #   "token_file": "~/path/token",           // default: config/claude-keys/<project>
 #   "settings":   { "theme": "dark" },      // merged into the machine's ~/.claude/settings.json
+#   "marketplaces": ["anthropics/claude-plugins-official"],   // plugin sources (GitHub repo, URL or path)
+#   "plugins":    ["figma@claude-plugins-official"],          // plugins to install (with their skills and MCP servers)
 #   "mcp":        { "<name>": { … } },      // user-scope MCP servers (no secrets here)
 #   "mcp_file":   "~/path/mcp.json"         // Mac file: { "mcpServers": { … } } for servers with secrets
 # }
-# Re-applied on every run. A token or MCP server removed from the config is removed from the machine.
+# Re-applied on every run. A token, plugin or MCP server removed from the config is removed from the
+# machine (only ones workon added; things you install yourself in the machine are left alone).
 register_group claude
 
 CLAUDE_KEYS_DIR="$CONFIG_DIR/claude-keys"   # one token file per project
@@ -19,7 +22,40 @@ claude::setup() {
   claude_install
   claude_token
   claude_settings
+  claude_plugins
   claude_mcp
+}
+
+# Marketplaces and plugins. Only missing ones are added, so repeat runs are quick.
+claude_plugins() {
+  local want have item
+  # Marketplaces are never removed: plugins from other sources may depend on them.
+  have="$(in_machine "$CLAUDE_BIN" plugin marketplace list --json 2>/dev/null | jq -r '.[] | .repo // empty, .url // empty, .name' 2>/dev/null)" || have=""
+  while IFS= read -r item; do
+    [[ -n "$item" ]] || continue
+    grep -qxF -- "$item" <<<"$have" && continue
+    info "Adding plugin marketplace '$item'"
+    in_machine "$CLAUDE_BIN" plugin marketplace add "$item" >/dev/null || die "Could not add plugin marketplace '$item'"
+  done < <(field claude.marketplaces "")
+
+  want="$(field claude.plugins "")"
+  have="$(in_machine "$CLAUDE_BIN" plugin list --json 2>/dev/null | jq -r '.[].id' 2>/dev/null)" || have=""
+  # Uninstall plugins workon installed before that are no longer configured.
+  while IFS= read -r item; do
+    [[ -n "$item" ]] || continue
+    grep -qxF -- "$item" <<<"$want" && continue
+    info "Removing plugin '$item'"
+    in_machine "$CLAUDE_BIN" plugin uninstall "$item" >/dev/null 2>&1 || true
+  done < <(in_machine sh -c 'cat ~/'"$CLAUDE_STATE"'/plugins 2>/dev/null || true')
+  while IFS= read -r item; do
+    [[ -n "$item" ]] || continue
+    if grep -qxF -- "$item" <<<"$have"; then continue; fi
+    info "Installing plugin '$item'"
+    with_heartbeat "installing $item" in_machine "$CLAUDE_BIN" plugin install "$item" >/dev/null ||
+      die "Could not install plugin '$item' (is its marketplace in claude.marketplaces?)"
+    ok "Plugin '$item' installed"
+  done <<<"$want"
+  printf '%s\n' "$want" | in_machine_stdin sh -c 'mkdir -p ~/'"$CLAUDE_STATE"' && cat > ~/'"$CLAUDE_STATE"'/plugins'
 }
 
 claude_install() {

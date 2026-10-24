@@ -305,19 +305,27 @@ remove it from the machine. Without a token, log in by running `claude` in the m
 | `install` | `true` | install Claude Code to `~/.local/bin` |
 | `token_file` | `config/claude-keys/<project>` | Mac file with a `claude setup-token` token |
 | `settings` | `{}` | merged into the machine's `~/.claude/settings.json` |
+| `marketplaces` | `[]` | plugin sources to add: a GitHub repo (`owner/repo`), URL or path |
+| `plugins` | `[]` | plugins to install, as `name@marketplace`. Plugins bring their own skills and MCP servers |
 | `mcp` | `{}` | MCP servers, as for `claude mcp add-json` |
 | `mcp_file` | none | Mac file `{ "mcpServers": { … } }` for servers with secrets |
 
 ```json
 "claude": {
   "settings": { "theme": "dark" },
+  "marketplaces": ["anthropics/claude-plugins-official"],
+  "plugins": ["figma@claude-plugins-official"],
   "mcp": { "docs": { "type": "http", "url": "https://docs.acme.example/mcp" } },
   "mcp_file": "~/workon/config/mcp/acme.json"
 }
 ```
 
-MCP servers are re-applied on every run. Servers you remove from the config are removed from the
-machine. `config/mcp/` is gitignored for files with secrets.
+Plugins and MCP servers are re-applied on every run, installing only what's missing. Ones you remove
+from the config are removed from the machine. Marketplaces are kept, since other plugins may use
+them. `config/mcp/` is gitignored for files with secrets.
+
+Servers that sign in through your browser (such as Figma and Atlassian) need signing in once per
+machine: run `claude` in the machine, type `/mcp`, pick the server and follow the link.
 
 ## Troubleshooting
 

@@ -65,6 +65,8 @@ pull_results="$(/bin/bash -c '
   echo "size $(parse_size 10M) $(parse_size 500k) $(parse_size 1024) $(t parse_size 10X)"
   echo "rel $(t pull_valid_rel notes/a.md dir) $(t pull_valid_rel ../x.md dir) $(t pull_valid_rel .vscode/x.md dir) $(t pull_valid_rel a/.hidden.md dir) $(t pull_valid_rel /etc/x.md dir) $(t pull_valid_rel "a"$'"'"'\n'"'"'"b.md" dir) $(t pull_valid_rel a//b.md dir) $(t pull_valid_rel . file) $(t pull_valid_rel x file)"
   echo "ext $(t pull_ext_allowed a/b.md) $(t pull_ext_allowed B.TXT) $(t pull_ext_allowed run.sh) $(t pull_ext_allowed README) $(t pull_ext_allowed x.md.app)"
+  PULL_NOEXT=true
+  echo "noext $(t pull_ext_allowed "notes/Work log") $(t pull_ext_allowed run.sh)"
   echo "classify $(pull_classify h1 h1 "") $(pull_classify h2 "" "") $(pull_classify h2 h1 "") $(pull_classify h2 h1 h1) $(pull_classify h1 h2 h1) $(pull_classify h3 h2 h1) $(pull_classify h1 "" h1) $(pull_classify h2 "" h1)"
 ')"
 expect_line() { # expect_line <prefix> <want> <label>
@@ -74,6 +76,7 @@ expect_line() { # expect_line <prefix> <want> <label>
 expect_line size     "10485760 512000 1024 no"                  "pull: sizes parse (10M, 500k, bytes; junk rejected)"
 expect_line rel      "yes no no no no no no yes no"             "pull: unsafe, hidden and absolute names rejected"
 expect_line ext      "yes yes no no no"                         "pull: only allowed extensions"
+expect_line noext    "yes no"                                   "pull: no_extension allows only extensionless files"
 expect_line classify "unchanged new changed changed mac-newer conflict mac-deleted conflict" \
                                                                 "pull: changes classified by which side changed"
 

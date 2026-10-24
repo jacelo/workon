@@ -254,6 +254,7 @@ and remember that `--sync` will bring the Mac version back.
 | Key | Default | |
 | --- | --- | --- |
 | `extensions` | `["md", "txt"]` | file types `workon --pull` may bring back |
+| `no_extension` | `false` | also bring back files with no extension, such as `Work log` |
 | `max_file_size` | no limit | largest file to bring back: bytes, or e.g. `"500K"`, `"10M"`, `"1G"` |
 
 Set it in `defaults` to apply to every project. A project can override it.

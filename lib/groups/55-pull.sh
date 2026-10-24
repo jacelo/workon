@@ -2,6 +2,7 @@
 #
 # "pull": {
 #   "extensions":    ["md", "txt"],   // file types allowed back onto the Mac (default: md, txt)
+#   "no_extension":  false,           // also allow files with no extension ("Work log")
 #   "max_file_size": "10M"            // optional; bytes or K/M/G. No limit by default
 # }
 # Set it in "defaults" for every project; a project can override it.
@@ -28,6 +29,7 @@ PULL_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/workon/pull"
 pull::load() {
   PULL_EXTS="$(field pull.extensions "" | sed 's/^\.//' | tr '[:upper:]' '[:lower:]')"
   [[ -n "$PULL_EXTS" ]] || PULL_EXTS=$'md\ntxt'
+  PULL_NOEXT="$(field pull.no_extension false)"
   local raw; raw="$(field pull.max_file_size "")"
   PULL_MAX=""
   if [[ -n "$raw" ]]; then
@@ -61,7 +63,10 @@ pull_valid_rel() {
 # pull_ext_allowed <file name>
 pull_ext_allowed() {
   local base; base="$(basename "$1")"
-  [[ "$base" == *.* ]] || return 1
+  if [[ "$base" != *.* ]]; then
+    if [[ "${PULL_NOEXT:-false}" == "true" ]]; then return 0; fi
+    return 1
+  fi
   grep -qxF -- "$(tr '[:upper:]' '[:lower:]' <<<"${base##*.}")" <<<"$PULL_EXTS"
 }
 

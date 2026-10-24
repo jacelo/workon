@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# workon — open a project in its own isolated OrbStack machine, in Cursor over Remote-SSH.
+# The work happens in lib/; see README.md for how it fits together.
+set -euo pipefail
+[[ -n "${WORKON_DEBUG:-}" ]] && set -x
+
+# Find the project root, following a symlinked bin/workon.
+src="${BASH_SOURCE[0]}"
+while [[ -L "$src" ]]; do
+  dir="$(cd "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"
+  [[ "$src" == /* ]] || src="$dir/$src"
+done
+WORKON_ROOT="$(cd "$(dirname "$src")/.." && pwd)"
+WORKON_LIB="$WORKON_ROOT/lib"
+
+for module in core lifecycle config machine commands; do
+  # shellcheck source=/dev/null
+  source "$WORKON_LIB/$module.sh"
+done
+# Config groups register themselves; file names set the order they run in.
+for module in "$WORKON_LIB"/groups/*.sh; do
+  # shellcheck source=/dev/null
+  source "$module"
+done
+
+workon_main "$@"

@@ -1,0 +1,8 @@
+# Your own config and secrets. config/workon.example.json is the shared template.
+config/workon.json
+config/claude-keys/*
+!config/claude-keys/.gitkeep
+config/*.local.json
+config/mcp/
+
+.DS_Store

@@ -1,0 +1,66 @@
+{
+  "defaults": {
+    "vm": {
+      "distro": "ubuntu:noble",
+      "isolate_network": true,
+      "packages": ["git", "openssh-client", "curl", "ca-certificates", "build-essential"]
+    },
+    "git": {
+      "user": "Your Name",
+      "email": "you@example.com"
+    },
+    "claude": {
+      "install": true,
+      "settings": {
+        "theme": "dark"
+      },
+      "mcp": {}
+    }
+  },
+  "projects": {
+    "acme": {
+      "git": {
+        "email": "you@acme.example",
+        "ssh_key": "~/.ssh/acme-github"
+      },
+      "web": {
+        "vm": {
+          "cpus": 4,
+          "memory": "8G",
+          "packages": ["git", "openssh-client", "curl", "ca-certificates", "build-essential", "jq", "docker.io", "docker-compose-v2"]
+        },
+        "git": {
+          "repo": "git@github.com:acme/web.git",
+          "branch": "main"
+        },
+        "workspace": {
+          "path": "~/acme/web",
+          "file": "~/acme/web.code-workspace"
+        },
+        "copy": [
+          { "src": "~/Work/acme/web/.env.local", "dest": ".env.local" },
+          { "src": "~/Work/acme/web.code-workspace", "dest": "~/acme/web.code-workspace" },
+          { "src": "~/Work/acme/notes", "dest": "~/acme/notes", "sync": "always", "exclude": ["*.tmp"] }
+        ],
+        "claude": {
+          "mcp": {
+            "docs": { "type": "http", "url": "https://docs.acme.example/mcp" }
+          }
+        },
+        "hooks": {
+          "on_create_root": [
+            "curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && apt-get install -y nodejs",
+            "usermod -aG docker \"$WORKON_USER\""
+          ],
+          "on_create": ["npm install"],
+          "on_start": [],
+          "on_stop": ["docker compose down"]
+        }
+      }
+    },
+    "sandbox": {
+      "workspace": { "path": "~/sandbox" },
+      "cursor": { "open": true }
+    }
+  }
+}

@@ -303,13 +303,20 @@ pull_review() {
       file="$(pull_mac_file "$src" "$rel")"
       if [[ "$status" == "new" ]]; then
         printf '  \033[32m+ new\033[0m      %s\n' "$rel"
-        head -n 15 "$staged" | sanitize | sed 's/^/      │ /'
-        count="$(wc -l < "$staged" | tr -d ' ')"
-        (( count > 15 )) && printf '      │ … %s more lines\n' $(( count - 15 ))
+        if is_binary "$staged"; then
+          printf '      │ (binary file, %s bytes)\n' "$(wc -c < "$staged" | tr -d ' ')"
+        else
+          head -n 15 "$staged" | sanitize | indent
+          count="$(wc -l < "$staged" | tr -d ' ')"
+          if (( count > 15 )); then printf '      │ … %s more lines\n' $(( count - 15 )); fi
+        fi
+      elif is_binary "$staged" || { [[ -f "$file" ]] && is_binary "$file"; }; then
+        printf '  \033[33m~ changed\033[0m  %s\n' "$rel"
+        printf '      │ (binary file, %s → %s bytes)\n' "$(wc -c < "$file" | tr -d ' ')" "$(wc -c < "$staged" | tr -d ' ')"
       else
         printf '  \033[33m~ changed\033[0m  %s\n' "$rel"
         # diff exits 1 when the files differ, which pipefail would treat as an error.
-        { diff -u "$file" "$staged" 2>/dev/null || true; } | tail -n +3 | sanitize | head -n 40 | sed 's/^/      │ /'
+        { diff -u "$file" "$staged" 2>/dev/null || true; } | tail -n +3 | sanitize | head -n 40 | indent
         count="$({ diff -u "$file" "$staged" 2>/dev/null || true; } | wc -l | tr -d ' ')"
         (( count > 42 )) && printf '      │ … diff continues (%s lines)\n' $(( count - 2 ))
       fi

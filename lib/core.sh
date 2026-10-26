@@ -39,6 +39,12 @@ temp_dir_into() {
 # Keeps tabs and newlines. Removes ASCII controls (incl. ESC) and UTF-8 encoded C1 controls.
 sanitize() { LC_ALL=C sed -e $'s/[\x01-\x08\x0b-\x1f\x7f]//g' -e $'s/\xc2[\x80-\x9f]//g'; }
 
+# indent: prefix each line with the preview gutter. LC_ALL=C so bytes that aren't valid UTF-8 don't make sed fail.
+indent() { LC_ALL=C sed 's/^/      │ /'; }
+
+# is_binary <file>: true if the file looks binary (a NUL byte in its first 8000 bytes, as git checks).
+is_binary() { [[ -s "$1" ]] && (( $(head -c 8000 "$1" | LC_ALL=C tr -dc '\000' | wc -c) > 0 )); }
+
 # host_path <path>: expand ~ on the Mac. Host paths must be absolute or start with ~.
 host_path() {
   case "$1" in
